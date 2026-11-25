@@ -16,19 +16,48 @@ from posidon_cli.options import OutputFormat
 from posidon_cli.pipeline.types import PipelineStage
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from posidon_core.models import Track
-    from posidon_core.ports import TagWriter
+    from posidon_core.ports import TagWriterFactory
 
     from posidon_cli.pipeline.types import PipelineSharedStorage
 
 
-_TAG_WRITERS: dict[OutputFormat, Callable[[logging.Logger], TagWriter]] = {
+_TAG_WRITERS: dict[OutputFormat, TagWriterFactory] = {
     # Write ID3 metadata and artwork into MP3 files.
     OutputFormat.MP3: Mp3TagWriter
 }
-"""Factories that build tag writers for the supported output formats."""
+"""Factories that build tag writers for the supported output formats.
+
+Each factory also declares the tag versions its writers accept.
+"""
+
+
+def check_tag_version(
+    output_format: OutputFormat, tag_version: str | None
+) -> None:
+    """Check a requested tag version against the output format's writer.
+
+    The check reads the writer's declarations and does not build a writer.
+
+    Args:
+        output_format: Output format whose tag writer would apply the tags.
+        tag_version: Requested tag version, or `None` for the writer's
+            default.
+
+    Raises:
+        ValueError: If the writer does not support the tag version. The
+            message names the format and the supported versions.
+    """
+    factory = _TAG_WRITERS[output_format]
+    if tag_version is None or tag_version in factory.supported_tag_versions:
+        return
+
+    supported = ", ".join(factory.supported_tag_versions)
+    msg = (
+        f"{tag_version!r} is not supported for output format "
+        f"{output_format.value!r}. Supported versions: {supported}."
+    )
+    raise ValueError(msg)
 
 
 class TaggingStage(PipelineStage):
@@ -90,6 +119,9 @@ class TaggingStage(PipelineStage):
             storage.logger.exception("Applying metadata failed: %s", track.url)
             return
 
-        tag_writer = _TAG_WRITERS[storage.options.output_format](storage.logger)
+        options = storage.options
+        tag_writer = _TAG_WRITERS[options.output_format](
+            storage.logger, options.tag_version
+        )
         tag_writer.write(media_path, metadata, thumbnail_path)
         track.metadata = metadata
