@@ -59,3 +59,21 @@
 - Report checks that were run and any checks that could not be run.
 - Refuse to merge changes that fail checks or introduce new warnings, unless the
   change is explicitly intended to do so.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `melintobias/posidon`, managed with the `gh`
+CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default triage labels: `needs-triage`, `needs-info`,
+`ready-for-agent`, `ready-for-human`, and `wontfix`. See
+`docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one glossary at `docs/GLOSSARY.md`, not at the repository root,
+and decision records in `docs/adr/`. See `docs/agents/domain.md`.
