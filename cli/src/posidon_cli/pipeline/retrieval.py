@@ -10,6 +10,12 @@ from typing import cast, TYPE_CHECKING
 from rich import progress
 from yt_dlp import YoutubeDL
 
+# Pyright's bundled yt-dlp stubs omit the FFmpeg post-processors.
+from yt_dlp.postprocessor import (
+    FFmpegPostProcessor,  # pyright: ignore[reportAttributeAccessIssue]
+)
+from yt_dlp.postprocessor import get_postprocessor
+
 from posidon_cli.logger import CONSOLE
 from posidon_cli.logger import log_stage_completion
 from posidon_cli.models.yt_dlp import DownloadArtifact
@@ -22,6 +28,22 @@ if TYPE_CHECKING:
 
     from posidon_cli.pipeline.types import PipelineSharedStorage
 
+URL_SCHEMES = frozenset({"http", "https", "ftp", "data"})
+"""URL schemes that yt-dlp downloads with the options used by this stage.
+
+yt-dlp's built-in request handler fetches these schemes. It refuses `file`
+URLs unless the `enable_file_urls` option is set, which this stage doesn't do.
+Inputs that only some yt-dlp extractors accept, such as `ytsearch1:query` or
+`rtmp://` URLs, are left out.
+"""
+
+_MISSING_FFMPEG = (
+    "FFmpeg was not found, but it is required to convert the downloaded "
+    "media to the selected formats. Install FFmpeg and make sure the "
+    "'ffmpeg' command is on PATH."
+)
+"""Error logged before any download when the converter is missing."""
+
 
 class RetrievalStage(PipelineStage):
     """Retrieve and process downloaded media and metadata."""
@@ -32,7 +54,13 @@ class RetrievalStage(PipelineStage):
 
         Args:
             storage: Existing pipeline storage.
+
+        Raises:
+            SystemExit: If the converter needed for the selected formats is
+                missing. Nothing is downloaded in that case.
         """
+        cls.check_converter(storage)
+
         logger = storage.logger
         tracks = storage.tracks
 
@@ -59,6 +87,31 @@ class RetrievalStage(PipelineStage):
                 )
 
         log_stage_completion(logger, logging.INFO, "Track retrieval completed")
+
+    @staticmethod
+    def check_converter(storage: PipelineSharedStorage) -> None:
+        """Exit before any download if the selected formats lack a converter.
+
+        yt-dlp runs post-processors only after a download finishes, so without
+        this check a missing FFmpeg would surface after the first download.
+        FFmpeg is found the same way yt-dlp finds it when converting.
+
+        Args:
+            storage: Pipeline storage containing the requested formats and the
+                logger that reports a missing converter.
+
+        Raises:
+            SystemExit: If a configured post-processor needs FFmpeg and FFmpeg
+                cannot be found.
+        """
+        post_processors = RetrievalStage.get_postprocessors(storage)
+        needs_ffmpeg = any(
+            issubclass(get_postprocessor(item["key"]), FFmpegPostProcessor)
+            for item in post_processors
+        )
+        if needs_ffmpeg and not FFmpegPostProcessor().available:
+            storage.logger.critical(_MISSING_FFMPEG)
+            raise SystemExit(1)
 
     @staticmethod
     def download_track(ydl: YoutubeDL, url: AnyUrl) -> DownloadArtifact:
@@ -146,18 +199,18 @@ class RetrievalStage(PipelineStage):
         return Path(filepath)
 
     @staticmethod
-    def get_ytdlp_options(
-        storage: PipelineSharedStorage, track: Track
-    ) -> dict[str, object]:
-        """Build yt-dlp options for the requested audio format and sidecars.
+    def get_postprocessors(
+        storage: PipelineSharedStorage,
+    ) -> list[dict[str, str]]:
+        """Build the yt-dlp post-processors for the requested formats.
 
         Args:
             storage: Shared pipeline storage containing the requested formats
                 and logger.
-            track: Track whose temporary directory receives the outputs.
 
         Returns:
-            Python API options for the requested outputs.
+            yt-dlp post-processor definitions, each naming its class with the
+            `key` entry.
         """
         logger = storage.logger
         output_format = storage.options.output_format
@@ -179,6 +232,24 @@ class RetrievalStage(PipelineStage):
                 "format": thumbnail_format.value,
                 "when": "before_dl",  # Thumbnail is already downloaded.
             })
+
+        return post_processors
+
+    @staticmethod
+    def get_ytdlp_options(
+        storage: PipelineSharedStorage, track: Track
+    ) -> dict[str, object]:
+        """Build yt-dlp options for the requested audio format and sidecars.
+
+        Args:
+            storage: Shared pipeline storage containing the requested formats
+                and logger.
+            track: Track whose temporary directory receives the outputs.
+
+        Returns:
+            Python API options for the requested outputs.
+        """
+        post_processors = RetrievalStage.get_postprocessors(storage)
 
         return {
             "postprocessors": post_processors,  # Convert the audio and artwork.

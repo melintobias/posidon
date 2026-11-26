@@ -58,6 +58,7 @@ pyo
 pyz
 rgx
 RSE
+rtmp
 RUF
 SLF
 startable
@@ -79,4 +80,5 @@ writethumbnail
 XDG
 ydl
 ytdlp
+ytsearch
 YTT

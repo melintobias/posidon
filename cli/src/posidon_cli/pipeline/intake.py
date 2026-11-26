@@ -6,6 +6,7 @@ from logging import DEBUG
 from logging import INFO
 from logging import WARNING
 from pathlib import Path
+from tempfile import TemporaryFile
 from typing import TYPE_CHECKING
 
 from posidon_core.models import Track
@@ -18,6 +19,7 @@ from posidon_cli.logger import CONSOLE
 from posidon_cli.logger import log_stage_completion
 from posidon_cli.options import OUTPUT_DIR_OPTION
 
+from .retrieval import URL_SCHEMES
 from .types import PipelineSharedStorage
 from .types import PipelineStage
 from .types import StageOrchestrator
@@ -43,6 +45,15 @@ _MISSING_MUSIC_DIRECTORY = (
 Formatted with the music directory, the working directory, and the option.
 """
 
+_OUTPUT_DIRECTORY_NOT_WRITABLE = (
+    "Cannot save tracks to %r because the directory is not writable. "
+    "Choose a writable directory with %s."
+)
+"""Error for an output directory that cannot receive new files.
+
+Formatted with the selected directory, after any fallback, and the option.
+"""
+
 
 class IntakeStage(PipelineStage):
     """Coordinate the URL and output directory checks performed at intake."""
@@ -56,7 +67,8 @@ class IntakeStage(PipelineStage):
 
         Raises:
             SystemExit: If no input URLs are provided and the `no_prompt` option
-                is set.
+                is set, if every URL is invalid, or if the output directory is
+                not writable.
         """
         options = storage.options
         if options.no_prompt and not options.urls:
@@ -121,9 +133,12 @@ class UrlValidationSubStage(PipelineStage):
         for index, url in enumerate(tracked_urls, start=1):
             logger.debug("%d/%d Validating: %s", index, total_urls, url)
 
-            if (validated_url := validate_url(url)) is None:
+            if (validated_url := validate_url(url, URL_SCHEMES)) is None:
                 logger.error(
-                    "%d/%d Invalid URL skipped: %s", index, total_urls, url
+                    "%d/%d Invalid or unsupported URL skipped: %s",
+                    index,
+                    total_urls,
+                    url,
                 )
                 continue
 
@@ -213,11 +228,16 @@ class OutputDirectorySubStage(PipelineStage):
         A directory chosen with the output directory option takes precedence
         over the platform's music directory. If the selected directory doesn't
         exist, a warning specific to its source names it and the option, and
-        the current working directory is used instead.
+        the current working directory is used instead. The resulting directory
+        must be writable, so the run stops before any download if it isn't.
 
         Args:
             storage: Pipeline storage containing the command options and
                 receiving the output directory.
+
+        Raises:
+            SystemExit: If the selected directory, after any fallback, is not
+                writable.
         """
         logger = storage.logger
 
@@ -238,11 +258,39 @@ class OutputDirectorySubStage(PipelineStage):
             )
             directory = fallback
 
+        if not is_writable(directory):
+            logger.critical(
+                _OUTPUT_DIRECTORY_NOT_WRITABLE,
+                str(directory),
+                OUTPUT_DIR_OPTION,
+            )
+            raise SystemExit(1)
+
         storage.output_directory = directory
 
         log_stage_completion(
             logger, DEBUG, "Output directory selected: %r", str(directory)
         )
+
+
+def is_writable(directory: Path) -> bool:
+    """Report whether a new file can be created in a directory.
+
+    A temporary file is created and removed again, because permission bits
+    alone miss access control lists and read-only mounts.
+
+    Args:
+        directory: Existing directory to test.
+
+    Returns:
+        `True` if the file could be created, otherwise `False`.
+    """
+    try:
+        with TemporaryFile(dir=directory):
+            pass
+    except OSError:
+        return False
+    return True
 
 
 def welcome() -> None:

@@ -1,11 +1,12 @@
-"""Tests for post-processing artifacts in the retrieval stage."""
+"""Tests for the retrieval stage's converter check and post-processing."""
 
 # cspell:words IHDR xerror rawvideo
 
+import logging
 import re
 import shutil
 import subprocess  # noqa: S404
-from typing import TYPE_CHECKING
+from typing import NoReturn, TYPE_CHECKING
 
 from posidon_cli.options import CliOptions
 from posidon_cli.options import ThumbnailFormat
@@ -15,6 +16,11 @@ from posidon_core.models import Track
 from pydantic import AnyUrl
 import pytest
 from yt_dlp import YoutubeDL
+
+# Pyright's bundled yt-dlp stubs omit the FFmpeg post-processors.
+from yt_dlp.postprocessor import (
+    FFmpegPostProcessor,  # pyright: ignore[reportAttributeAccessIssue]
+)
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -98,3 +104,82 @@ def test_thumbnail_postprocessor_encodes_requested_format(
     )
     assert decoded.returncode == 0, decoded.stderr.decode(errors="replace")
     assert len(decoded.stdout) == 2 * 2 * 3
+
+
+def retrieval_storage(
+    thumbnail_format: ThumbnailFormat,
+) -> PipelineSharedStorage:
+    """Create pipeline storage holding one track that hasn't been retrieved.
+
+    Args:
+        thumbnail_format: Thumbnail format selected for the run.
+
+    Returns:
+        Storage with a single track and a test logger.
+    """
+    storage = PipelineSharedStorage(
+        options=CliOptions(thumbnail_format=thumbnail_format),
+        logger=logging.getLogger(__name__),
+    )
+    storage.tracks = (Track(url=AnyUrl("https://example.com/track")),)
+    return storage
+
+
+@pytest.mark.parametrize("thumbnail_format", list(ThumbnailFormat))
+def test_missing_ffmpeg_exits_before_download(
+    thumbnail_format: ThumbnailFormat,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Exit with an actionable error before downloading without FFmpeg.
+
+    Every supported audio format is converted with FFmpeg, so the check
+    applies whatever thumbnail format is selected.
+
+    Args:
+        thumbnail_format: Thumbnail format selected for the run.
+        monkeypatch: Fixture hiding FFmpeg and guarding against downloads.
+        caplog: Fixture holding the captured log records.
+    """
+
+    def fail_download(*unused_args: object) -> NoReturn:
+        """Fail the test if retrieval starts a download.
+
+        Raises:
+            AssertionError: Always.
+        """
+        raise AssertionError("Retrieval started a download without FFmpeg")
+
+    monkeypatch.setattr(FFmpegPostProcessor, "available", False)
+    monkeypatch.setattr(RetrievalStage, "download_track", fail_download)
+    storage = retrieval_storage(thumbnail_format)
+
+    with pytest.raises(SystemExit) as exit_info:
+        RetrievalStage.run(storage)
+
+    assert exit_info.value.code == 1
+    assert storage.tracks[0].artifacts.tmp_directory is None
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.CRITICAL
+    ] == [
+        (
+            "FFmpeg was not found, but it is required to convert the "
+            "downloaded media to the selected formats. Install FFmpeg and "
+            "make sure the 'ffmpeg' command is on PATH."
+        )
+    ]
+
+
+def test_available_ffmpeg_passes_converter_check(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Continue without an error when yt-dlp finds FFmpeg.
+
+    Args:
+        monkeypatch: Fixture reporting FFmpeg as available.
+    """
+    monkeypatch.setattr(FFmpegPostProcessor, "available", True)
+
+    RetrievalStage.check_converter(retrieval_storage(ThumbnailFormat.JPG))

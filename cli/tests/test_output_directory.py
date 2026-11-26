@@ -1,7 +1,9 @@
 """Tests for choosing the directory that receives finished audio files."""
 
+from contextlib import suppress
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from posidon_cli.main import app
 from posidon_cli.options import CliOptions
@@ -11,6 +13,9 @@ from posidon_cli.pipeline.types import PipelineSharedStorage
 from posidon_cli.pipeline.types import StageOrchestrator
 import pytest
 from typer.testing import CliRunner
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture
@@ -52,6 +57,34 @@ def working_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     directory.mkdir()
     monkeypatch.chdir(directory)
     return Path.cwd()
+
+
+@pytest.fixture
+def read_only_directory(tmp_path: Path) -> Iterator[Path]:
+    """Provide a directory in which no new file can be created.
+
+    The test is skipped where permission bits don't stop the current user from
+    writing, such as for the root user or on Windows.
+
+    Args:
+        tmp_path: Per-test temporary directory containing the directory.
+
+    Yields:
+        The read-only directory. Its permissions are restored afterwards so
+        pytest can remove it.
+    """
+    directory = tmp_path / "read-only"
+    directory.mkdir()
+    directory.chmod(0o500)
+    try:
+        probe = directory / "probe"
+        with suppress(PermissionError):
+            probe.touch()
+        if probe.exists():
+            pytest.skip("The current user can write to read-only directories")
+        yield directory
+    finally:
+        directory.chmod(0o700)
 
 
 def select_output_directory(output_dir: Path | None) -> PipelineSharedStorage:
@@ -186,6 +219,39 @@ def test_missing_music_directory_falls_back_to_working_directory(
             "instead. Choose a directory with --output-dir."
         )
     ]
+
+
+def test_read_only_chosen_directory_exits(
+    read_only_directory: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Exit with an error naming a chosen directory that isn't writable."""
+    with pytest.raises(SystemExit) as exit_info:
+        select_output_directory(read_only_directory)
+
+    assert exit_info.value.code == 1
+    assert [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno == logging.CRITICAL
+    ] == [
+        (
+            f"Cannot save tracks to {str(read_only_directory)!r} because the "
+            "directory is not writable. Choose a writable directory with "
+            "--output-dir."
+        )
+    ]
+
+
+def test_read_only_fallback_directory_exits(
+    tmp_path: Path, read_only_directory: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Exit when the fallback for a missing directory isn't writable."""
+    monkeypatch.chdir(read_only_directory)
+
+    with pytest.raises(SystemExit) as exit_info:
+        select_output_directory(tmp_path / "missing")
+
+    assert exit_info.value.code == 1
 
 
 def test_intake_selects_output_directory(tmp_path: Path) -> None:
