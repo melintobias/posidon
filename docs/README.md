@@ -1,5 +1,6 @@
 # Posidon Documentation
 
+- [Glossary](GLOSSARY.md) defines the project's domain terms.
 - [Pipeline](pipeline/README.md) covers shared validation, CLI options, and media
   processing stages.
 - [Core architecture](core/README.md) describes the core package and its
