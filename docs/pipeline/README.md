@@ -21,10 +21,7 @@ selected output format's tag writer saves. Each writer declares the versions
 it accepts and its default. For `mp3`, the option accepts `id3v2.3` and
 `id3v2.4`, and Posidon defaults to `id3v2.4`. For example,
 `uv run posidon --tag-version id3v2.3 "<source-url>"` saves ID3v2.3 tags.
-After parsing every option, and before the pipeline starts, the CLI checks the
-version against the writer's declarations. An unsupported version is a usage
-error that names `--tag-version`, the output format, and the supported
-versions, regardless of the order of `--tag-version` and `--output-format`.
+The selected writer rejects unsupported versions during tagging.
 
 The CLI's `--thumbnail-format` option chooses the image encoding for the
 embedded front cover. It accepts `original` (the default), `jpg`, `png`, and

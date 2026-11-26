@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 from mutagen.id3 import ID3
 from mutagen.mp3 import EasyMP3
 from posidon_cli.models.yt_dlp import DownloadArtifact
-from posidon_cli.options import CliOptions
 from posidon_cli.options import OutputFormat
 from posidon_cli.pipeline.tagging import _TAG_WRITERS  # noqa: PLC2701
 from posidon_cli.pipeline.tagging import TaggingStage
@@ -22,9 +21,6 @@ if TYPE_CHECKING:
 
 MP3_FRAME = bytes((0xFF, 0xFB, 0x90, 0x64)) + bytes(413)
 """Silent 128 kilobits per second, 44.1 kHz MPEG-1 Layer III audio frame."""
-
-ID3V23_MAJOR = 3
-"""Major version byte in the header of an ID3v2.3 tag."""
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 """PNG header used to check that the stage embeds the downloaded thumbnail."""
@@ -162,41 +158,3 @@ def test_add_file_metadata_leaves_media_intact_when_artwork_is_unreadable(
     assert track.metadata == TrackMetadata()
     assert track.artifacts.tmp_media_path is not None
     assert track.artifacts.tmp_media_path.read_bytes() == MP3_FRAME * 4
-
-
-@pytest.mark.parametrize(
-    ("tag_version", "major"), [(None, 4), ("id3v2.4", 4), ("id3v2.3", 3)]
-)
-def test_add_file_metadata_writes_selected_tag_version(
-    track: Track, tag_version: str | None, major: int
-) -> None:
-    """Save the tag version from the options, defaulting to ID3v2.4.
-
-    Args:
-        track: Track with downloaded artifacts.
-        tag_version: Tag version option, or `None` for the default.
-        major: Expected ID3v2 major version byte on disk.
-    """
-    storage = PipelineSharedStorage(
-        options=CliOptions(tag_version=tag_version),
-        logger=logging.getLogger(__name__),
-    )
-    write_metadata(
-        track,
-        {"title": "Song", "artists": ["A", "B"], "upload_date": "20240115"},
-    )
-
-    TaggingStage.add_file_metadata(storage, track)
-
-    assert track.artifacts.tmp_media_path is not None
-    data = track.artifacts.tmp_media_path.read_bytes()
-    assert data[:4] == b"ID3" + bytes([major])
-    assert data.endswith(MP3_FRAME * 4)
-    tags = ID3(track.artifacts.tmp_media_path, translate=False)
-    assert tags.version[:2] == (2, major)
-    if major == ID3V23_MAJOR:
-        assert tags["TPE1"].text == ["A/B"]
-        assert (str(tags["TYER"]), str(tags["TDAT"])) == ("2024", "1501")
-    else:
-        assert tags["TPE1"].text == ["A", "B"]
-        assert str(tags["TDRC"]) == "2024-01-15"

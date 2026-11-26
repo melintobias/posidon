@@ -32,34 +32,6 @@ Each factory also declares the tag versions its writers accept.
 """
 
 
-def check_tag_version(
-    output_format: OutputFormat, tag_version: str | None
-) -> None:
-    """Check a requested tag version against the output format's writer.
-
-    The check reads the writer's declarations and does not build a writer.
-
-    Args:
-        output_format: Output format whose tag writer would apply the tags.
-        tag_version: Requested tag version, or `None` for the writer's
-            default.
-
-    Raises:
-        ValueError: If the writer does not support the tag version. The
-            message names the format and the supported versions.
-    """
-    factory = _TAG_WRITERS[output_format]
-    if tag_version is None or tag_version in factory.supported_tag_versions:
-        return
-
-    supported = ", ".join(factory.supported_tag_versions)
-    msg = (
-        f"{tag_version!r} is not supported for output format "
-        f"{output_format.value!r}. Supported versions: {supported}."
-    )
-    raise ValueError(msg)
-
-
 class TaggingStage(PipelineStage):
     """Apply metadata and artwork with the writer for the output format."""
 
@@ -98,7 +70,7 @@ class TaggingStage(PipelineStage):
 
         Raises:
             ValueError: If a downloaded artifact path is missing or the writer
-                rejects the media file or thumbnail type.
+                rejects the tag version, media file, or thumbnail type.
         """
         media_path = track.artifacts.tmp_media_path
         metadata_path = track.artifacts.tmp_metadata_path

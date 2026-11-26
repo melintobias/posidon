@@ -17,14 +17,6 @@ the command definition to keep both in sync.
 """
 
 
-TAG_VERSION_OPTION = "--tag-version"
-"""Long flag choosing the metadata tag version written for the output format.
-
-Usage errors for an unsupported version name this flag, so it is shared with
-the command definition to keep both in sync.
-"""
-
-
 class OutputFormat(StrEnum):
     """Audio formats the CLI can produce and tag."""
 
@@ -58,8 +50,7 @@ class CliOptions:
         no_prompt: Whether to exit when no URLs were supplied.
         output_format: Audio format produced by retrieval and used for tagging.
         tag_version: Tag version to write, such as `id3v2.3` for MP3, or
-            `None` to use the default of the output format's tag writer. The
-            CLI checks it against the writer before running the pipeline.
+            `None` to use the default of the output format's tag writer.
         thumbnail_format: Image format to use for the embedded cover artwork.
         output_dir: Directory chosen to receive finished audio files, or `None`
             to use the platform's music directory. The path may not exist;

@@ -10,10 +10,9 @@ Implementations live in the
 selects a writer for the requested output format. Writer classes satisfy the
 `TagWriterFactory` port: they declare `supported_tag_versions` and a
 `default_tag_version`, and their constructor takes a logger and an optional tag
-version. The CLI validates the `--tag-version` option against these
-declarations without building a writer, and the writer builds its tags for the
-resolved version. Format-specific decisions, such as date frames and text
-encodings, stay in the adapter.
+version. The tagging stage passes `--tag-version` to the selected writer,
+which validates the requested version when created. Format-specific decisions,
+such as date frames and text encodings, stay in the adapter.
 
 ## MP3
 
