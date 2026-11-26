@@ -55,6 +55,13 @@ def main(  # noqa: PLR0913 # Typer maps each option to a parameter.
     output_format: Annotated[  # noqa: ARG001
         OutputFormat, Option("--output-format", help="Output audio format.")
     ] = DEFAULT_CLI_OPTIONS.output_format,
+    tag_version: Annotated[  # noqa: ARG001
+        str | None,
+        Option(
+            "--tag-version",
+            help="Metadata tag version for the selected output format.",
+        ),
+    ] = DEFAULT_CLI_OPTIONS.tag_version,
     thumbnail_format: Annotated[  # noqa: ARG001
         ThumbnailFormat,
         Option(
@@ -81,6 +88,8 @@ def main(  # noqa: PLR0913 # Typer maps each option to a parameter.
         no_prompt: Whether to exit when no URLs are provided, instead of
             prompting for input.
         output_format: Audio format used for conversion and tagging.
+        tag_version: Tag version for the output format's tag writer, or
+            `None` to use the writer's default.
         thumbnail_format: Image format to use for the embedded cover artwork.
         output_dir: Directory receiving finished audio files, or `None` to
             use the platform's music directory.

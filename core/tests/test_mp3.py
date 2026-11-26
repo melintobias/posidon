@@ -104,7 +104,7 @@ def test_write_applies_text_and_cover(
         "composer": ["Composer"],
         "tracknumber": ["3/12"],
         "discnumber": ["1/2"],
-        "date": ["20240115"],
+        "date": ["2024-01-15"],
         "genre": ["Pop", "Rock"],
         "copyright": ["Example Records"],
     }

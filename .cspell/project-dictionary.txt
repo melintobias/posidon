@@ -13,6 +13,8 @@ bsddb
 caplog
 cls
 ctx
+DDMM
+delall
 delenv
 discnumber
 dl
@@ -63,12 +65,16 @@ SLF
 startable
 TALB
 TCOM
+TDAT
 TDRC
 testpaths
 TPE
 TPOS
 tracknumber
 TRCK
+TRDA
+TSOP
+TYER
 uvx
 wayfinder
 wayfinding

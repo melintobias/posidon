@@ -16,6 +16,13 @@ For valid metadata, it applies tags and artwork with the selected writer and
 stores the metadata on the track after the write succeeds. `MovingStage` then
 moves the media file into the output directory and clears its temporary path.
 
+The CLI's `--tag-version` option chooses the metadata tag version that the
+selected output format's tag writer saves. Each writer declares the versions
+it accepts and its default. For `mp3`, the option accepts `id3v2.3` and
+`id3v2.4`, and Posidon defaults to `id3v2.4`. For example,
+`uv run posidon --tag-version id3v2.3 "<source-url>"` saves ID3v2.3 tags.
+The selected writer rejects unsupported versions during tagging.
+
 The CLI's `--thumbnail-format` option chooses the image encoding for the
 embedded front cover. It accepts `original` (the default), `jpg`, `png`, and
 `webp`. For example, `uv run posidon --thumbnail-format jpg "<source-url>"`

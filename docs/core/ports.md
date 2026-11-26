@@ -11,4 +11,5 @@ during extraction. It returns provider-neutral `SourceAcquisition` values so
 orchestrators can replace the integration without changing pipeline logic.
 
 The [tag writer port](tag-writers.md) defines how adapters apply metadata and
-artwork to media files.
+artwork to media files, and how writer classes declare the tag versions they
+support.
