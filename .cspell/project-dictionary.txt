@@ -1,6 +1,9 @@
 absl
+actioned
 adapterize
 addopts
+adr
+AFK
 albumartist
 anydbm
 APIC
@@ -29,11 +32,14 @@ fmt
 fn
 FURB
 getall
+gh
 ICN
 infojson
 INP
 ipynb
 isrc
+mattpocock
+melintobias
 noplaylist
 outtmpl
 pkl
@@ -56,7 +62,7 @@ rgx
 RSE
 RUF
 SLF
-syncsafe
+startable
 TALB
 TCOM
 TDAT
@@ -68,9 +74,10 @@ tracknumber
 TRCK
 TRDA
 TSOP
-TXXX
 TYER
 uvx
+wayfinder
+wayfinding
 WIP
 wordmark
 writeinfojson
