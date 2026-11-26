@@ -9,20 +9,18 @@
 		<path stroke="#38BDF8" d="M20 115c8 0 14-10 22-10s14 10 22 10 14-10 22-10 14 10 22 10" />
 	</g>
 	<path fill="#E6F6F4" d="M36 16l5 20v6H31v-6zM64 6l5 22v6H59v-6zM92 16l5 20v6H87v-6z" />
-	<!-- Wordmark, with an anchor-shaped i -->
+	<!-- Wordmark -->
 	<g transform="translate(136 22) scale(0.84)">
 		<g fill="none" stroke="#E6F6F4" stroke-linecap="round" stroke-linejoin="round" stroke-width="10">
 			<path d="M5 35v63" />
 			<circle cx="24" cy="54" r="19" />
 			<circle cx="84" cy="54" r="19" />
 			<path d="M151.3 39.05A15 9.5 0 1 0 139 54a15 9.5 0 1 1-12.3 14.95" />
-			<path d="M176 35v63" />
+			<path d="M176 35v38" />
 			<circle cx="217" cy="54" r="19" />
 			<path d="M236 5v68" />
 			<circle cx="277" cy="54" r="19" />
 			<path d="M318 35v38m0-19a19 19 0 0 1 38 0v19" />
 		</g>
-		<path fill="#E6F6F4" d="M152 84c0 11 10 19 24 19s24-8 24-19h-7c0 6-7 9-17 9s-17-3-17-9z" />
-		<path fill="#E6F6F4" d="M155.5 79l8 9h-16zM196.5 79l8 9h-16z" />
 	</g>
 </svg>
